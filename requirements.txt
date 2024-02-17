@@ -1,1 +1,14 @@
 streamlit~=1.30
+nltk~=3.8
+python-docx~=1.1
+chardet~=5.2
+# transformers==4.14.1
+# pyplutchik==0.0.7
+# torch
+# streamlit
+# pandas
+# docx
+# nltk
+# localtunnel
+# try instead:
+# py-localtunnel

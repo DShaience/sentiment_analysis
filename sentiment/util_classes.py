@@ -1,65 +1,47 @@
 from abc import ABC
+from typing import TypedDict
+
+from tabulate import tabulate
+
+
+class ReportInfo(TypedDict):
+    negative: float
+    neutral: float
+    positive: float
+    polarity: float
+    text: str
 
 
 class SentimentResult:
     def __init__(self, positive: float = None, negative: float = None, neutral: float = None,
                  polarity: float = None, raw_scores=None, raw_text: str = None):
-        self.positive: float = positive
-        self.negative: float = negative
-        self.neutral: float = neutral
-        self.polarity: float = polarity
-        self.raw_scores = raw_scores   # this is the non-standardized output from the SentimentAnalyzer class
-        self.raw_text = raw_text
+        self.result = ReportInfo(negative=negative, neutral=neutral, positive=positive, polarity=polarity, text=raw_text)
+        self._raw_scores = raw_scores  # this is the non-standardized output from the SentimentAnalyzer class
 
-    @staticmethod
-    def _get_score_validation(score, strict: bool = False):
-        if (not strict) or (score is not None):
-            return score
-        else:
-            raise AssertionError("Score is None. This can happen when the attribute for it wasn't initialized, "
-                                 "which can happen as not all sentiment analysis classes have the same classifications")
-
-    def get_score(self, score_type: str, strict: bool = False):
+    def get_score(self, score_type: str):
         """
         :param score_type:
         :param strict: provide protection against None. Default is false.
         'all' and 'raw' are intentionally left exempt from strict
         """
         if score_type == 'pos':
-            return self._get_score_validation(self.positive, strict)
+            return self.result['positive']
         elif score_type == 'neg':
-            return self._get_score_validation(self.negative, strict)
+            return self.result['negative']
         elif score_type == 'neutral':
-            return self._get_score_validation(self.neutral, strict)
+            return self.result['neutral']
         elif score_type == 'polarity':
-            return self._get_score_validation(self.polarity, strict)
+            return self.result['polarity']
         elif score_type == 'all':
-            return self.positive, self.negative, self.negative, self.polarity
+            return self.result['positive'], self.result['negative'], self.result['negative'], self.result['polarity']
         elif score_type == 'raw':
-            return self.raw_scores
+            return self._raw_scores
         else:
             raise ValueError(f"Undefined score type: {score_type}")
 
     def __str__(self):
-        text = f", raw-text: {self.raw_text}" if self.raw_text is not None else None
-        return (f"positive: {self.positive}, negative: {self.negative}, "
-                f"neutral: {self.neutral}, polarity: {self.polarity}{text}")
-
-
-class TextInputGetter(ABC):
-    def __getitem__(self, index):
-        raise NotImplementedError
-
-
-class ManualText(TextInputGetter):
-    def __init__(self, texts: list[str]):
-        self.texts = texts
-
-    def __getitem__(self, index):
-        return self.texts[index]
-
-    def __len__(self):
-        return len(self.texts)
+        formatted_pairs = ", ".join([f"{key}: {value}" for key, value in self.result.items()])
+        return formatted_pairs
 
 
 class SentimentAnalyzerWrapper(ABC):
@@ -76,4 +58,25 @@ class VaderSentimentAnalyzerWrapper(SentimentAnalyzerWrapper):
         raw_res = self.sid.polarity_scores(text)
         return SentimentResult(raw_res['pos'], raw_res['neg'], polarity=raw_res['compound'],
                                raw_scores=raw_res, raw_text=text)
+
+
+class ReportProducer:
+    def __init__(self, scores: list[ReportInfo]):
+        if len(scores) == 0:
+            self.scores = []
+        self.scores = scores
+
+    def to_dict(self) -> list[ReportInfo]:
+        return self.scores
+
+    def __len__(self):
+        return len(self.scores)
+
+    def __str__(self):
+        if len(self) == 0:
+            return ""
+
+        headers = [c for c in self.scores[0].keys()]
+        table_data = [[row[field] for field in headers] for row in self.scores]  # type: ignore
+        return tabulate(table_data, headers=headers)
 
